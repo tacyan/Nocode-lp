@@ -1,0 +1,57 @@
+@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-end-rgb));
+  margin: 0;
+  padding: 0;
+}
+
+/* ハイドレーション前のローディング表示 */
+#theme-registry-loading,
+#loading-client-only {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #ffffff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* MUIスタイルが適用された後に表示 */
+body.mui-ready .MuiBox-root,
+body.mui-ready .MuiPaper-root,
+body.mui-ready .MuiAppBar-root {
+  opacity: 1;
+  transition: opacity 0.2s ease-in;
+}
+
+/* カスタムスタイルをここに追加 */
