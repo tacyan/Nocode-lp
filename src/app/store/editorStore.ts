@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
+import { getSectionTemplateElements, getSectionBackgroundColor, getSectionTypeName } from '../utils/sectionTemplates';
 
 /**
  * セクションの種類
@@ -142,14 +143,25 @@ export const useEditorStore = create<EditorState>((set) => ({
   
   // セクション関連のアクション
   addSection: (type) => set((state) => {
+    // セクションタイプに合わせたデフォルト要素を取得
+    const templateElements = getSectionTemplateElements(type);
+    const backgroundColor = getSectionBackgroundColor(type);
+    const typeName = getSectionTypeName(type);
+    
     const newSection: Section = {
       id: uuidv4(),
       type,
-      title: `新しい${type}セクション`,
-      elements: [],
-      backgroundColor: '#ffffff',
+      title: `${typeName}セクション`,
+      elements: templateElements,
+      backgroundColor,
     };
-    return { sections: [...state.sections, newSection] };
+    
+    const updatedSections = [...state.sections, newSection];
+    
+    return { 
+      sections: updatedSections,
+      selectedSectionId: newSection.id  // 新しいセクションを自動的に選択
+    };
   }),
   
   removeSection: (id) => set((state) => ({

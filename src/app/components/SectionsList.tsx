@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { useEditorStore, SectionType } from '../store/editorStore';
+import { getSectionTypeName } from '../utils/sectionTemplates';
 import {
   List,
   ListItem,
@@ -19,12 +20,21 @@ import {
   Menu,
   MenuItem,
   Divider,
-  Box
+  Box,
+  ListItemIcon,
+  Tooltip
 } from '@mui/material';
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
-  DragIndicator as DragIcon
+  DragIndicator as DragIcon,
+  Home as HeroIcon,
+  Stars as FeatureIcon,
+  AttachMoney as PricingIcon,
+  FormatQuote as TestimonialIcon,
+  ContactMail as ContactIcon,
+  MoreHoriz as FooterIcon,
+  Edit as CustomIcon
 } from '@mui/icons-material';
 import { 
   DndContext, 
@@ -43,6 +53,57 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
+/**
+ * セクションタイプの説明を取得する
+ * @param {SectionType} type - セクションタイプ
+ * @returns {string} - タイプの説明
+ */
+const getSectionTypeDescription = (type: SectionType): string => {
+  switch(type) {
+    case 'hero':
+      return 'サイトのメインビジュアル部分';
+    case 'feature':
+      return '特徴やサービスの説明を表示';
+    case 'pricing':
+      return '料金プランの表示';
+    case 'testimonial':
+      return 'お客様の声や評価を掲載';
+    case 'contact':
+      return 'お問い合わせフォームの表示';
+    case 'footer':
+      return 'サイトのフッター部分';
+    case 'custom':
+      return 'カスタム要素を自由に配置';
+    default:
+      return '';
+  }
+};
+
+/**
+ * セクションタイプのアイコンを取得する
+ * @param {SectionType} type - セクションタイプ
+ * @returns {React.ReactElement} - アイコンコンポーネント
+ */
+const getSectionTypeIcon = (type: SectionType): React.ReactElement => {
+  switch(type) {
+    case 'hero':
+      return <HeroIcon />;
+    case 'feature':
+      return <FeatureIcon />;
+    case 'pricing':
+      return <PricingIcon />;
+    case 'testimonial':
+      return <TestimonialIcon />;
+    case 'contact':
+      return <ContactIcon />;
+    case 'footer':
+      return <FooterIcon />;
+    case 'custom':
+    default:
+      return <CustomIcon />;
+  }
+};
 
 /**
  * ドラッグ可能なセクションアイテムのプロパティ
@@ -65,7 +126,7 @@ interface SortableSectionItemProps {
  * ドラッグ可能なセクションアイテムコンポーネント
  * 
  * @param {SortableSectionItemProps} props - コンポーネントのプロパティ
- * @returns {JSX.Element} - ドラッグ可能なセクションアイテム
+ * @returns {React.ReactElement} - ドラッグ可能なセクションアイテム
  */
 const SortableSectionItem: React.FC<SortableSectionItemProps> = ({ id, title, type, isSelected, onDelete }) => {
   const { selectSection } = useEditorStore();
@@ -112,7 +173,7 @@ const SortableSectionItem: React.FC<SortableSectionItemProps> = ({ id, title, ty
       </IconButton>
       <ListItemText 
         primary={title} 
-        secondary={`タイプ: ${type}`} 
+        secondary={getSectionTypeName(type)} 
         primaryTypographyProps={{ 
           variant: 'body2',
           fontWeight: isSelected ? 'bold' : 'normal'
@@ -128,7 +189,7 @@ const SortableSectionItem: React.FC<SortableSectionItemProps> = ({ id, title, ty
 /**
  * セクションリストコンポーネント
  * 
- * @returns {JSX.Element} - セクションリストコンポーネント
+ * @returns {React.ReactElement} - セクションリストコンポーネント
  */
 const SectionsList: React.FC = () => {
   const { sections, addSection, removeSection, moveSection, selectedSectionId } = useEditorStore();
@@ -185,6 +246,17 @@ const SectionsList: React.FC = () => {
     }
   };
   
+  // セクションタイプとそのメニュー項目データの配列
+  const sectionTypes: {type: SectionType; icon: React.ReactElement; description: string}[] = [
+    { type: 'hero', icon: <HeroIcon />, description: getSectionTypeDescription('hero') },
+    { type: 'feature', icon: <FeatureIcon />, description: getSectionTypeDescription('feature') },
+    { type: 'pricing', icon: <PricingIcon />, description: getSectionTypeDescription('pricing') },
+    { type: 'testimonial', icon: <TestimonialIcon />, description: getSectionTypeDescription('testimonial') },
+    { type: 'contact', icon: <ContactIcon />, description: getSectionTypeDescription('contact') },
+    { type: 'footer', icon: <FooterIcon />, description: getSectionTypeDescription('footer') },
+    { type: 'custom', icon: <CustomIcon />, description: getSectionTypeDescription('custom') }
+  ];
+  
   return (
     <Paper elevation={1} sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -202,13 +274,18 @@ const SectionsList: React.FC = () => {
           open={Boolean(anchorEl)}
           onClose={handleMenuClose}
         >
-          <MenuItem onClick={() => handleSelectType('hero')}>ヒーローセクション</MenuItem>
-          <MenuItem onClick={() => handleSelectType('feature')}>特徴セクション</MenuItem>
-          <MenuItem onClick={() => handleSelectType('pricing')}>料金セクション</MenuItem>
-          <MenuItem onClick={() => handleSelectType('testimonial')}>お客様の声セクション</MenuItem>
-          <MenuItem onClick={() => handleSelectType('contact')}>お問い合わせセクション</MenuItem>
-          <MenuItem onClick={() => handleSelectType('footer')}>フッターセクション</MenuItem>
-          <MenuItem onClick={() => handleSelectType('custom')}>カスタムセクション</MenuItem>
+          {sectionTypes.map(({ type, icon, description }) => (
+            <Tooltip key={type} title={description} placement="right" arrow>
+              <MenuItem onClick={() => handleSelectType(type)}>
+                <ListItemIcon>{icon}</ListItemIcon>
+                <ListItemText 
+                  primary={getSectionTypeName(type) + 'セクション'} 
+                  secondary={description}
+                  secondaryTypographyProps={{ variant: 'caption' }}
+                />
+              </MenuItem>
+            </Tooltip>
+          ))}
         </Menu>
       </Box>
       
