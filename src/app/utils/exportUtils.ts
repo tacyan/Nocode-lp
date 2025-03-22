@@ -181,19 +181,126 @@ export const exportToHtml = async (rootElement: HTMLElement, title: string): Pro
  */
 export const exportToSvg = async (rootElement: HTMLElement, fileName: string): Promise<void> => {
   try {
-    const svgContent = await toSvg(rootElement, {
-      quality: 1,
-      backgroundColor: 'white',
-    });
+    // ロード中表示
+    const loadingElement = document.createElement('div');
+    loadingElement.style.position = 'fixed';
+    loadingElement.style.top = '50%';
+    loadingElement.style.left = '50%';
+    loadingElement.style.transform = 'translate(-50%, -50%)';
+    loadingElement.style.padding = '20px';
+    loadingElement.style.background = 'rgba(0, 0, 0, 0.7)';
+    loadingElement.style.color = 'white';
+    loadingElement.style.borderRadius = '5px';
+    loadingElement.style.zIndex = '10000';
+    loadingElement.textContent = 'SVG生成中...';
+    document.body.appendChild(loadingElement);
+
+    // 元の要素のスタイルを保存
+    const originalWidth = rootElement.style.width;
+    const originalHeight = rootElement.style.height;
+    const originalOverflow = rootElement.style.overflow;
+    const originalPosition = rootElement.style.position;
     
-    // SVGをダウンロード
-    const link = document.createElement('a');
-    link.download = `${fileName || 'lp-export'}.svg`;
-    link.href = svgContent;
-    link.click();
+    // スクロール位置を保存
+    const originalScrollTop = window.scrollY;
+    
+    try {
+      console.log('SVG変換を開始します...');
+      
+      // 要素を一時的に調整
+      rootElement.style.width = `${rootElement.scrollWidth}px`;
+      rootElement.style.height = `${rootElement.scrollHeight}px`;
+      rootElement.style.overflow = 'visible';
+      rootElement.style.position = 'relative';
+      
+      console.log(`要素のサイズ: ${rootElement.scrollWidth}x${rootElement.scrollHeight}`);
+      
+      // html-to-imageのtoSvgを試行
+      let svgContent;
+      try {
+        console.log('toSvgでの変換を試みます...');
+        svgContent = await toSvg(rootElement, {
+          quality: 1,
+          backgroundColor: 'white',
+          width: rootElement.scrollWidth,
+          height: rootElement.scrollHeight,
+          filter: (node) => {
+            // iframeやcanvasなどSVG変換で問題を起こす可能性のある要素を除外
+            return !['iframe', 'canvas'].includes(node.tagName?.toLowerCase() || '');
+          },
+          skipFonts: true, // フォント関連の問題を回避
+        });
+        console.log('toSvgでの変換に成功しました');
+      } catch (svgError) {
+        console.warn('toSvgでの変換に失敗しました。代替手段を試行します:', svgError);
+        
+        // 代替手段として、html2canvasでキャンバスに変換してからSVGに変換
+        console.log('html2canvasでキャプチャします...');
+        const canvas = await html2canvas(rootElement, {
+          backgroundColor: 'white',
+          scale: 2, // 高解像度
+          logging: true, // デバッグ用
+          useCORS: true, // クロスオリジン画像の処理を許可
+          allowTaint: true, // セキュリティの制限を緩和
+          width: rootElement.scrollWidth,
+          height: rootElement.scrollHeight,
+          windowWidth: rootElement.scrollWidth,
+          windowHeight: rootElement.scrollHeight,
+          x: 0,
+          y: 0,
+          scrollX: 0,
+          scrollY: 0,
+        });
+        
+        console.log(`キャンバスサイズ: ${canvas.width}x${canvas.height}`);
+        
+        // キャンバスからPNG画像として出力して、それをSVGに埋め込む
+        const pngDataUrl = canvas.toDataURL('image/png', 1.0);
+        
+        svgContent = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}">
+  <foreignObject width="100%" height="100%">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <img width="100%" height="100%" src="${pngDataUrl}" />
+    </div>
+  </foreignObject>
+</svg>
+        `)}`;
+        
+        console.log('html2canvasからSVGに変換しました');
+      }
+      
+      if (!svgContent) {
+        throw new Error('SVG生成に失敗しました');
+      }
+      
+      console.log('SVGのサイズ:', svgContent.length);
+      
+      // SVGをダウンロード
+      const link = document.createElement('a');
+      link.download = `${fileName || 'lp-export'}.svg`;
+      link.href = svgContent;
+      document.body.appendChild(link); // Firefox対応のため
+      link.click();
+      document.body.removeChild(link); // 不要になったリンクを削除
+      
+      console.log('SVG変換が完了しました');
+    } finally {
+      // 元のスタイルを復元
+      rootElement.style.width = originalWidth;
+      rootElement.style.height = originalHeight;
+      rootElement.style.overflow = originalOverflow;
+      rootElement.style.position = originalPosition;
+      
+      // スクロール位置を復元
+      window.scrollTo(0, originalScrollTop);
+      
+      // ロード表示を削除
+      document.body.removeChild(loadingElement);
+    }
   } catch (error) {
     console.error('SVGのエクスポートに失敗しました:', error);
-    throw error;
+    alert('SVGのエクスポートに失敗しました。別の形式でのエクスポートをお試しください。');
   }
 };
 
@@ -205,16 +312,62 @@ export const exportToSvg = async (rootElement: HTMLElement, fileName: string): P
  */
 export const exportToPng = async (rootElement: HTMLElement, fileName: string): Promise<void> => {
   try {
-    const pngContent = await toPng(rootElement, {
-      quality: 0.95,
-      backgroundColor: 'white',
-    });
+    // ロード中表示
+    const loadingElement = document.createElement('div');
+    loadingElement.style.position = 'fixed';
+    loadingElement.style.top = '50%';
+    loadingElement.style.left = '50%';
+    loadingElement.style.transform = 'translate(-50%, -50%)';
+    loadingElement.style.padding = '20px';
+    loadingElement.style.background = 'rgba(0, 0, 0, 0.7)';
+    loadingElement.style.color = 'white';
+    loadingElement.style.borderRadius = '5px';
+    loadingElement.style.zIndex = '10000';
+    loadingElement.textContent = 'PNG生成中...';
+    document.body.appendChild(loadingElement);
+
+    // 元の要素のスタイルを保存
+    const originalWidth = rootElement.style.width;
+    const originalHeight = rootElement.style.height;
+    const originalOverflow = rootElement.style.overflow;
+    const originalPosition = rootElement.style.position;
+
+    // スクロール位置を保存
+    const originalScrollTop = window.scrollY;
     
-    // PNGをダウンロード
-    saveAs(pngContent, `${fileName || 'lp-export'}.png`);
+    try {
+      // 要素を一時的に調整
+      rootElement.style.width = `${rootElement.scrollWidth}px`;
+      rootElement.style.height = `${rootElement.scrollHeight}px`;
+      rootElement.style.overflow = 'visible';
+      rootElement.style.position = 'relative';
+      
+      const pngContent = await toPng(rootElement, {
+        quality: 0.95,
+        backgroundColor: 'white',
+        width: rootElement.scrollWidth,
+        height: rootElement.scrollHeight,
+        pixelRatio: 2, // 高解像度
+      });
+      
+      // PNGをダウンロード
+      saveAs(pngContent, `${fileName || 'lp-export'}.png`);
+    } finally {
+      // 元のスタイルを復元
+      rootElement.style.width = originalWidth;
+      rootElement.style.height = originalHeight;
+      rootElement.style.overflow = originalOverflow;
+      rootElement.style.position = originalPosition;
+      
+      // スクロール位置を復元
+      window.scrollTo(0, originalScrollTop);
+      
+      // ロード表示を削除
+      document.body.removeChild(loadingElement);
+    }
   } catch (error) {
     console.error('PNGのエクスポートに失敗しました:', error);
-    throw error;
+    alert('PNGのエクスポートに失敗しました。別の形式でのエクスポートをお試しください。');
   }
 };
 
@@ -371,15 +524,88 @@ export const exportToAllFormats = async (
   // SVG形式のエクスポート
   if (formats.includes('svg')) {
     try {
-      const svgContent = await toSvg(rootElement, {
-        quality: 1,
-        backgroundColor: 'white',
-      });
+      console.log('複数形式エクスポート: SVG生成を開始します...');
+      
+      // 元の要素のスタイルを保存
+      const originalWidth = rootElement.style.width;
+      const originalHeight = rootElement.style.height;
+      const originalOverflow = rootElement.style.overflow;
+      const originalPosition = rootElement.style.position;
+
+      // 要素を一時的に調整
+      rootElement.style.width = `${rootElement.scrollWidth}px`;
+      rootElement.style.height = `${rootElement.scrollHeight}px`;
+      rootElement.style.overflow = 'visible';
+      rootElement.style.position = 'relative';
+
+      console.log(`要素のサイズ: ${rootElement.scrollWidth}x${rootElement.scrollHeight}`);
+      
+      // SVG生成を試行
+      let svgContent;
+      try {
+        console.log('toSvgでの変換を試みます...');
+        svgContent = await toSvg(rootElement, {
+          quality: 1,
+          backgroundColor: 'white',
+          width: rootElement.scrollWidth,
+          height: rootElement.scrollHeight,
+          filter: (node) => {
+            // iframeやcanvasなどSVG変換で問題を起こす可能性のある要素を除外
+            return !['iframe', 'canvas'].includes(node.tagName?.toLowerCase() || '');
+          },
+          skipFonts: true, // フォント関連の問題を回避
+        });
+        console.log('toSvgでの変換に成功しました');
+      } catch (svgError) {
+        console.warn('toSvgでの変換に失敗しました。代替手段を試行します:', svgError);
+        
+        // 代替手段として、html2canvasでキャンバスに変換してからSVGに変換
+        console.log('html2canvasでキャプチャします...');
+        const canvas = await html2canvas(rootElement, {
+          backgroundColor: 'white',
+          scale: 2, // 高解像度
+          logging: false,
+          useCORS: true, // クロスオリジン画像の処理を許可
+          allowTaint: true, // セキュリティの制限を緩和
+          width: rootElement.scrollWidth,
+          height: rootElement.scrollHeight,
+          windowWidth: rootElement.scrollWidth,
+          windowHeight: rootElement.scrollHeight,
+          x: 0,
+          y: 0,
+          scrollX: 0,
+          scrollY: 0,
+        });
+        
+        console.log(`キャンバスサイズ: ${canvas.width}x${canvas.height}`);
+        
+        // キャンバスからPNG画像として出力して、それをSVGに埋め込む
+        const pngDataUrl = canvas.toDataURL('image/png', 1.0);
+        
+        svgContent = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}">
+  <foreignObject width="100%" height="100%">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <img width="100%" height="100%" src="${pngDataUrl}" />
+    </div>
+  </foreignObject>
+</svg>
+        `)}`;
+        
+        console.log('html2canvasからSVGに変換しました');
+      }
+      
+      // 元のスタイルを復元
+      rootElement.style.width = originalWidth;
+      rootElement.style.height = originalHeight;
+      rootElement.style.overflow = originalOverflow;
+      rootElement.style.position = originalPosition;
       
       // データURLからBlobに変換
       const response = await fetch(svgContent);
       const blob = await response.blob();
       
+      console.log('SVGをZIPに追加します...');
       zip.file('svg/export.svg', blob);
     } catch (error) {
       console.error('SVGのエクスポートに失敗しました:', error);
@@ -389,10 +615,31 @@ export const exportToAllFormats = async (
   // PNG形式のエクスポート
   if (formats.includes('png')) {
     try {
+      // 元の要素のスタイルを保存
+      const originalWidth = rootElement.style.width;
+      const originalHeight = rootElement.style.height;
+      const originalOverflow = rootElement.style.overflow;
+      const originalPosition = rootElement.style.position;
+
+      // 要素を一時的に調整
+      rootElement.style.width = `${rootElement.scrollWidth}px`;
+      rootElement.style.height = `${rootElement.scrollHeight}px`;
+      rootElement.style.overflow = 'visible';
+      rootElement.style.position = 'relative';
+      
       const pngContent = await toPng(rootElement, {
         quality: 0.95,
         backgroundColor: 'white',
+        width: rootElement.scrollWidth,
+        height: rootElement.scrollHeight,
+        pixelRatio: 2, // 高解像度
       });
+      
+      // 元のスタイルを復元
+      rootElement.style.width = originalWidth;
+      rootElement.style.height = originalHeight;
+      rootElement.style.overflow = originalOverflow;
+      rootElement.style.position = originalPosition;
       
       // データURLからBlobに変換
       const response = await fetch(pngContent);
